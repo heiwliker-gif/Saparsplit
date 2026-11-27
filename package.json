@@ -1,7 +1,7 @@
 {
   "name": "saparsplit-backend",
   "version": "1.0.0",
-  "description": "SaparSplit trip expense app with a React client and PostgreSQL API",
+  "description": "SaparSplit trip expense app with a React client, Express API, and SQLite",
   "main": "server.js",
   "type": "commonjs",
   "engines": {
@@ -11,8 +11,7 @@
     "start": "node server.js",
     "dev": "vite --config client/vite.config.js",
     "dev:server": "node --watch server.js",
-    "build": "vite build --config client/vite.config.js",
-    "migrate:sqlite": "node scripts/migrate-sqlite-to-postgres.js"
+    "build": "vite build --config client/vite.config.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -20,7 +19,6 @@
     "express": "^4.19.2",
     "google-auth-library": "^9.14.1",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.16.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },

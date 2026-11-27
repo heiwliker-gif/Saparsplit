@@ -11,12 +11,14 @@ const { pool, initializeDatabase } = require('./database');
 
 const PORT = Number(process.env.PORT || 3000);
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const JWT_SECRET = process.env.JWT_SECRET;
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const DEMO_AUTH_ENABLED = !GOOGLE_CLIENT_ID && !IS_PRODUCTION;
+const JWT_SECRET = process.env.JWT_SECRET || (IS_PRODUCTION ? null : crypto.randomBytes(32).toString('hex'));
 const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 const app = express();
 
-if (!GOOGLE_CLIENT_ID || !JWT_SECRET) {
-  console.error('Set GOOGLE_CLIENT_ID and JWT_SECRET in .env.');
+if (IS_PRODUCTION && (!GOOGLE_CLIENT_ID || !JWT_SECRET)) {
+  console.error('Set GOOGLE_CLIENT_ID and JWT_SECRET for production.');
   process.exit(1);
 }
 
@@ -45,6 +47,11 @@ function userPublic(user) {
   return { id: user.id, email: user.email, name: user.name, picture: user.picture };
 }
 
+function parseJson(value, fallback) {
+  if (Array.isArray(value)) return value;
+  try { return JSON.parse(value || ''); } catch { return fallback; }
+}
+
 function tripPublic(trip) {
   return {
     id: trip.id,
@@ -56,7 +63,7 @@ function tripPublic(trip) {
     currency: trip.currency,
     date: trip.date,
     budget: Number(trip.budget),
-    members: trip.members,
+    members: parseJson(trip.members, []),
     created_at: trip.created_at,
   };
 }
@@ -67,7 +74,7 @@ function expensePublic(expense) {
     desc: expense.description,
     amount: Number(expense.amount),
     payer: expense.payer,
-    participants: expense.participants,
+    participants: parseJson(expense.participants, []),
     date: expense.date,
     icon: expense.icon,
   };
@@ -81,7 +88,7 @@ function placePublic(place) {
     addr: place.address,
     desc: place.description,
     cost: Number(place.cost),
-    fav: place.favorite,
+    fav: Boolean(place.favorite),
     lat: place.lat,
     lng: place.lng,
   };
@@ -98,10 +105,11 @@ async function getAccessibleTrip(tripId, userId) {
 }
 
 app.get('/api/config', (_req, res) => {
-  res.json({ googleClientId: GOOGLE_CLIENT_ID });
+  res.json({ googleClientId: GOOGLE_CLIENT_ID || null, demoAuth: DEMO_AUTH_ENABLED });
 });
 
 app.post('/api/auth/google', asyncRoute(async (req, res) => {
+  if (!googleClient) return res.status(503).json({ error: 'google_auth_not_configured' });
   const { credential } = req.body || {};
   if (!credential) return res.status(400).json({ error: 'missing_credential' });
 
@@ -122,6 +130,21 @@ app.post('/api/auth/google', asyncRoute(async (req, res) => {
        SET email = EXCLUDED.email, name = EXCLUDED.name, picture = EXCLUDED.picture
      RETURNING *`,
     [payload.sub, payload.email || null, payload.name || null, payload.picture || null],
+  );
+  const user = result.rows[0];
+  const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+  res.json({ token, user: userPublic(user) });
+}));
+
+app.post('/api/auth/demo', asyncRoute(async (_req, res) => {
+  if (!DEMO_AUTH_ENABLED) return res.status(404).json({ error: 'demo_auth_disabled' });
+
+  const result = await pool.query(
+    `INSERT INTO users (google_id, email, name, picture)
+     VALUES ('local-demo-user', 'demo@localhost', 'Демо пользователь', NULL)
+     ON CONFLICT (google_id) DO UPDATE
+       SET email = EXCLUDED.email, name = EXCLUDED.name
+     RETURNING *`,
   );
   const user = result.rows[0];
   const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
@@ -207,9 +230,9 @@ app.post('/api/trips/join', requireAuth, asyncRoute(async (req, res) => {
     const userResult = await client.query('SELECT name, email FROM users WHERE id = $1', [req.userId]);
     const user = userResult.rows[0];
     const participantName = user?.name?.trim() || user?.email?.split('@')[0] || '';
-    const members = Array.isArray(trip.members) ? trip.members : [];
+    const members = parseJson(trip.members, []);
     if (participantName && !members.some((name) => String(name).toLocaleLowerCase() === participantName.toLocaleLowerCase())) {
-      await client.query('UPDATE trips SET members = members || $1::jsonb WHERE id = $2', [JSON.stringify([participantName]), trip.id]);
+      await client.query('UPDATE trips SET members = $1 WHERE id = $2', [JSON.stringify([...members, participantName]), trip.id]);
     }
     await client.query('COMMIT');
     res.json({ tripId: trip.id });
@@ -370,7 +393,7 @@ async function start() {
     await initializeDatabase();
     app.listen(PORT, () => console.log(`SaparSplit API listening on http://localhost:${PORT}`));
   } catch (error) {
-    console.error('Could not connect to PostgreSQL. Check DATABASE_URL in .env.', error.message);
+    console.error('Could not open SQLite database. Check SQLITE_PATH and file permissions.', error.message);
     process.exitCode = 1;
     await pool.end();
   }
