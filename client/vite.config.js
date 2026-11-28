@@ -3,9 +3,11 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 
 const clientRoot = fileURLToPath(new URL('.', import.meta.url));
+const projectRoot = fileURLToPath(new URL('..', import.meta.url));
 
 export default defineConfig({
   root: clientRoot,
+  envDir: projectRoot,
   plugins: [react()],
   server: {
     host: '0.0.0.0',
