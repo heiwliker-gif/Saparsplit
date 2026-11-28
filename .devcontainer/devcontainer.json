@@ -1,0 +1,25 @@
+{
+  "name": "SaparSplit with PostgreSQL",
+  "dockerComposeFile": [
+    "../compose.yaml",
+    "docker-compose.yml"
+  ],
+  "service": "app",
+  "workspaceFolder": "/workspaces/saparsplit",
+  "postCreateCommand": "npm install",
+  "forwardPorts": [3000, 5173, 5432],
+  "portsAttributes": {
+    "3000": {
+      "label": "SaparSplit API",
+      "onAutoForward": "notify"
+    },
+    "5173": {
+      "label": "SaparSplit",
+      "onAutoForward": "openBrowser"
+    },
+    "5432": {
+      "label": "PostgreSQL",
+      "onAutoForward": "ignore"
+    }
+  }
+}

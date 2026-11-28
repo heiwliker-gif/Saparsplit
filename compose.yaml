@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: saparsplit
+      POSTGRES_USER: saparsplit
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_saparsplit_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - saparsplit_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saparsplit -d saparsplit"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  saparsplit_pgdata:

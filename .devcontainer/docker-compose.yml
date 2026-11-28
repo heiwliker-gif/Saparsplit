@@ -1,0 +1,15 @@
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm
+    volumes:
+      - ..:/workspaces/saparsplit:cached
+    command: sleep infinity
+    init: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://saparsplit:local_saparsplit_password@postgres:5432/saparsplit
+      JWT_SECRET: codespaces-development-secret-only
+      PORT: "3000"
+      PGSSL: "false"

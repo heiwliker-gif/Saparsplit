@@ -157,7 +157,6 @@ export default function App() {
   });
   const [auth, setAuth] = useState(() => { try { return JSON.parse(localStorage.getItem('ss_auth') || 'null'); } catch { return null; } });
   const [clientId, setClientId] = useState('');
-  const [demoAuth, setDemoAuth] = useState(false);
   const [trips, setTrips] = useState([]);
   const [trip, setTrip] = useState(null);
   const [tab, setTab] = useState('overview');
@@ -203,18 +202,8 @@ export default function App() {
     setAuth(nextAuth);
   }, []);
 
-  const loginWithDemo = useCallback(async () => {
-    const result = await api('/api/auth/demo', { method: 'POST' });
-    const nextAuth = { token: result.token, user: result.user };
-    localStorage.setItem('ss_auth', JSON.stringify(nextAuth));
-    setAuth(nextAuth);
-  }, []);
-
   useEffect(() => {
-    api('/api/config').then((config) => {
-      setClientId(config.googleClientId || '');
-      setDemoAuth(Boolean(config.demoAuth));
-    }).catch(() => { setClientId(''); setDemoAuth(false); });
+    api('/api/config').then((config) => setClientId(config.googleClientId || '')).catch(() => setClientId(''));
   }, []);
 
   useEffect(() => {
@@ -441,7 +430,7 @@ export default function App() {
   }, []);
 
   if (loading) return <div className="loading-screen"><div className="brand-mark">S</div><span>Загружаем SaparSplit…</span></div>;
-  if (!auth?.token) return <main className="login-screen"><section className="login-card"><div className="brand-lockup"><div className="brand-mark">S</div><div>Sapar<span>Split</span></div></div><p className="eyebrow">Поездки вместе — расчёты без путаницы</p><h1>{pendingInvite ? <>Вас пригласили<br />в совместную поездку</> : <>Планируйте поездки<br />и делите расходы</>}</h1><p className="login-copy">{pendingInvite ? 'Войдите через Google, чтобы присоединиться и вместе вести расходы и места.' : 'Соберите участников, записывайте общие траты и сразу видите, кто кому должен.'}</p>{demoAuth ? <div className="login-provider"><button className="button button-primary button-full" onClick={() => loginWithDemo().catch((reason) => setError(reason.message || 'Не удалось открыть демо-режим.'))}>Продолжить в демо-режиме</button><p className="login-foot">Демо-вход для локального запуска без Google OAuth.</p></div> : <GoogleLogin clientId={clientId} onCredential={loginWithGoogle} />}{error && <p className="inline-error">{error}</p>}<div className="login-foot">{demoAuth ? 'Демо-аккаунт общий. Не используйте этот режим на публичном сайте.' : 'Вход через Google · данные поездок сохраняются в вашем аккаунте'}</div></section><div className="login-orbit orbit-one"/><div className="login-orbit orbit-two"/></main>;
+  if (!auth?.token) return <main className="login-screen"><section className="login-card"><div className="brand-lockup"><div className="brand-mark">S</div><div>Sapar<span>Split</span></div></div><p className="eyebrow">Поездки вместе — расчёты без путаницы</p><h1>{pendingInvite ? <>Вас пригласили<br />в совместную поездку</> : <>Планируйте поездки<br />и делите расходы</>}</h1><p className="login-copy">{pendingInvite ? 'Войдите через Google, чтобы присоединиться и вместе вести расходы и места.' : 'Соберите участников, записывайте общие траты и сразу видите, кто кому должен.'}</p><GoogleLogin clientId={clientId} onCredential={loginWithGoogle} />{error && <p className="inline-error">{error}</p>}<div className="login-foot">Вход через Google · данные поездок сохраняются в вашем аккаунте</div></section><div className="login-orbit orbit-one"/><div className="login-orbit orbit-two"/></main>;
 
   return <div className="app-shell">
     <aside className="sidebar">
@@ -517,7 +506,7 @@ function TripContent({ trip, tab, total, balances, settlements, filteredExpenses
       <div className="collaborator-list">{(trip.collaborators || []).map((person) => <div className="collaborator-row" key={person.id}>{person.picture ? <img src={person.picture} alt="" /> : <div className="avatar">{(person.name || person.email || '?').slice(0, 1)}</div>}<div><strong>{person.name || 'Пользователь'}</strong><small>{person.email}</small></div><span className={person.role === 'owner' ? 'owner-label' : 'member-label'}>{person.role === 'owner' ? 'Владелец' : 'Участник'}</span>{trip.isOwner && person.role !== 'owner' && <button className="icon-button danger-icon" title="Отозвать доступ" onClick={() => onRemoveCollaborator(person)}>×</button>}</div>)}</div>
     </Card>
     <Card className="settings-tools"><div><h2>Данные поездки</h2><p>Сохраните копию или перенесите поездку из JSON-файла.</p></div><div className="button-row"><button className="button button-muted" onClick={() => window.print()}>▤ Сохранить PDF</button><button className="button button-muted" onClick={onExport}>↓ Экспорт JSON</button><label className="button button-muted upload-label">↑ Импорт JSON<input type="file" accept="application/json,.json" onChange={(event) => { onImport(event.target.files?.[0]); event.target.value = ''; }} /></label></div></Card>
-    <Card className="about-card"><div className="brand-mark">S</div><div><strong>SaparSplit</strong><p>Ваши поездки и расходы хранятся в SQLite и доступны после входа в аккаунт.</p></div></Card>
+    <Card className="about-card"><div className="brand-mark">S</div><div><strong>SaparSplit</strong><p>Ваши поездки и расходы синхронизируются с PostgreSQL и доступны после входа в аккаунт.</p></div></Card>
   </div>;
 }
 
