@@ -1,8 +1,8 @@
 {
   "name": "SaparSplit with PostgreSQL",
   "dockerComposeFile": [
-    "../compose.yaml",
-    "docker-compose.yml"
+    "docker-compose.yml",
+    "../compose.yaml"
   ],
   "service": "app",
   "workspaceFolder": "/workspaces/saparsplit",
